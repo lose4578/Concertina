@@ -1,0 +1,227 @@
+# CALVIN ABC -> D fine-tune -> Traly/concertina-calvin: 5,000 updates from Traly/concertina-pretrain-90k;
+# 8 processes x batch_size 192 = 1536 samples per update.
+#   hf download Traly/calvin_abc_d-lerobot --repo-type dataset \
+#       --revision 60371339eb9f0325922d8e61877dcc5cf08260ae \
+#       --local-dir /path/to/datasets/calvin_abc_d-lerobot
+#   torchrun --nproc-per-node=8 "$(which concertina-train)" --config_path=configs/train/calvin.yaml \
+#       --dataset.root=/path/to/datasets
+# Fewer GPUs: k-fold accelerator.gradient_accumulation.steps keeps the batch; also multiply steps, save_freq
+# and policy.scheduler_{warmup,decay}_steps by k (all count micro-batches).
+# Do not pass --policy.path (it replaces the policy section of this file); --policy.pretrained_path=<dir>
+# loads a local copy of the parent instead.
+dataset:
+  repo_id: concertina/calvin
+  root: /path/to/datasets
+  image_transforms:
+    enable: false
+    max_num_transforms: 3
+    random_order: false
+    tfs:
+      brightness:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          brightness:
+          - 0.8
+          - 1.2
+      contrast:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          contrast:
+          - 0.8
+          - 1.2
+      saturation:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          saturation:
+          - 0.5
+          - 1.5
+      hue:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          hue:
+          - -0.05
+          - 0.05
+      sharpness:
+        weight: 1.0
+        type: SharpnessJitter
+        kwargs:
+          sharpness:
+          - 0.5
+          - 1.5
+      affine:
+        weight: 1.0
+        type: RandomAffine
+        kwargs:
+          degrees:
+          - -5.0
+          - 5.0
+          translate:
+          - 0.05
+          - 0.05
+  use_imagenet_stats: true
+  video_backend: torchcodec
+policy:
+  type: concertina
+  device: cuda
+  dtype: float32
+  push_to_hub: false
+  pretrained_path: Traly/concertina-pretrain-90k
+  model:
+    backbone_path: ''
+    vision_attn_implementation: sdpa
+    training_attn_implementation: cudnn_sdpa_native_gqa
+    gradient_checkpointing: true
+    use_liger_kernels: true
+    camera_keys:
+    - observation.images.top
+    - observation.images.wrist
+    chunk_size: 10
+    block_size: 10
+    gripper_indices:
+    - 9
+    gripper_target: probability
+    action_dim_loss_weights:
+    - 500.0
+    - 500.0
+    - 500.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 1.0
+    - 500.0
+    - 500.0
+    - 500.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 1.0
+    state_mask_dims:
+    - 2
+    state_mask_prob: 0.5
+    state_mask_ratio_range:
+    - 1.0
+    - 1.0
+    state_mask_fill_value: 0.0
+    random_resized_crop: true
+    mask_value: zeros
+    corruption:
+      mode: log_linear_mask
+      visible_corruption: uniform
+      visible_noise_std: 1.0
+      visible_uniform_range:
+      - -1.0
+      - 1.0
+      probability_floor: 0.001
+      loss_weighting: none
+    full_mask_probability: 0.0
+    visible_action_context:
+      strategy: none
+      apply_probability: 0.0
+      noise_std:
+      - 0.0
+      repair_loss_weight: 0.0
+      apply_to_history: false
+    token_risk: true
+    action_history:
+      enabled: false
+      horizon: 20
+      mode: prefix
+      missing_history: mask
+      noise_std: 1.0
+    freeze_action_heads: true
+    freeze_backbone_layers:
+    - 0
+    - 1
+    rng_seed: 42
+    inference:
+      n_action_steps: 10
+      draft_steps: 4
+      confidence: token_risk
+      commit_strategy: dynamic
+      commit_confidence_threshold: 0.0
+      commit_max_ratio: 0.5
+      draft_ranking: confidence
+      draft_seed: null
+      visible_revision: true
+      revision_margin: 0.0
+      remask_steps: 2
+      remask_ratio: 0.2
+      remask_cooldown_steps: 1
+      remask_decay_budget: true
+      remask_accept_if_improved: true
+      remask_improvement_margin: 0.0
+      remask_early_stop_patience: 2
+      remask_keep_best: true
+      remask_no_repeat: false
+      remask_keep_draft_translation: false
+      rtc: false
+      rtc_prefix_source: executed_tail
+      rtc_execution_horizon: 0
+  data:
+    datasets:
+    - path: calvin_abc_d-lerobot
+      source: calvin
+      embodiment: calvin
+      adapter: null
+      weight: null
+      source_fps: null
+      camera_map: {}
+      valid_action_dim: 10
+      gripper_profile: calvin
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    drop_n_first_frames: 0
+    drop_n_last_frames: 16
+    fps_align_target_fps: null
+    resize_images: false
+    normalization: global
+    gripper_range_tolerance: 1.0e-06
+    custom_gripper_profiles: []
+    inference_dataset_index: 0
+    quality:
+      require_release_ready: true
+  optimizer_lr: 2.5e-05
+  optimizer_betas:
+  - 0.9
+  - 0.95
+  optimizer_eps: 1.0e-08
+  optimizer_weight_decay: 0.01
+  optimizer_grad_clip_norm: 1.0
+  scheduler_warmup_steps: 80
+  scheduler_decay_steps: 5000
+  scheduler_decay_lr: 2.5e-06
+job_name: concertina-calvin
+seed: 42
+cudnn_deterministic: false
+num_workers: 8
+prefetch_factor: 2
+dataloader_multiprocessing_context: spawn
+batch_size: 192
+steps: 5000
+log_freq: 10
+tolerance_s: 0.0001
+save_checkpoint: true
+save_freq: 1250
+persistent_workers: true
+resume: false
+use_policy_training_preset: true
+parallelism:
+  dp_shard: -1
+accelerator:
+  mixed_precision: bf16
+  gradient_accumulation:
+    steps: 1
+checkpoint_format: safetensors_dcp
+wandb:
+  enable: false

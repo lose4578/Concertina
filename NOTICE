@@ -1,0 +1,133 @@
+Concertina
+Copyright 2026 The Concertina Authors
+
+Concertina is licensed under the MIT License (see LICENSE).
+
+It contains code adapted from the third-party projects listed below. Every listed file carries a header naming
+the origin of the adapted code and stating that it was modified. The files that adapt code from Apache License 2.0
+projects (LeRobot, Hugging Face Transformers, X-VLA) are distributed under the Apache License 2.0, whose text is in
+LICENSES/Apache-2.0.txt. The license texts of the MIT and BSD projects are reproduced at the end of this file.
+
+Concertina depends on (but does not redistribute) LeRobot, Hugging Face Transformers, PyTorch, Liger-Kernel and the
+packages pinned in tools/env/constraints.txt; each is distributed under its own license.
+
+===============================================================================
+Models
+
+Concertina uses the Bard-VL vision-language backbone, which this repository references but does not contain.
+
+  Bard-VL -- MIT License (per its model card)
+      https://huggingface.co/fudan-generative-ai/Bard-VL-B4-Mask-4B-Instruct
+      https://fudan-generative-vision.github.io/Bard-VL, https://huggingface.co/papers/2604.16514
+  Qwen3-VL -- Apache License 2.0 (Bard-VL is converted from Qwen3-VL)
+      https://github.com/QwenLM/Qwen3-VL
+
+===============================================================================
+LeRobot -- Apache License 2.0
+Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+https://github.com/huggingface/lerobot
+
+  src/concertina/train/factories.py
+      `make_dataloaders` adapts `make_dataloaders` of lerobot/scripts/lerobot_train.py (commit
+      2b8aeee410753fcfaa44ec259707474bf6141b62). Modified: the Concertina weighted mixture sampler replaces the
+      episode-aware sampler, and a resumed run restores the sampler position.
+  src/concertina/data/stats.py
+      `aggregate_feature_stats` adapts `aggregate_feature_stats` of lerobot/datasets/compute_stats.py.
+      Modified: pools offline rotation-statistics files and averages quantiles with count weights.
+  src/concertina/data/rotation.py
+      The rotation conversions adapt `mat2quat`, `quat2axisangle`, `rotate6d_to_axis_angle` and
+      `mat_to_rotate6d` of lerobot/policies/xvla/utils.py (LeRobot's port of X-VLA, see below). Modified:
+      batched NumPy/PyTorch wrappers around the per-element conversions, and the inverse conversions to Euler
+      angles and quaternions.
+
+===============================================================================
+Hugging Face Transformers -- Apache License 2.0
+Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
+https://github.com/huggingface/transformers
+
+  src/concertina/model/liger.py
+      `_liger_rope_attention_forward` adapts `Qwen3VLTextAttention.forward` of
+      src/transformers/models/qwen3_vl/modeling_qwen3_vl.py (transformers 5.5.4). Modified: the attention
+      forward applies Liger-Kernel's rotary-embedding kernel.
+  src/concertina/model/backbone.py
+      `QwenVLBackbone._expand_image_tokens` adapts the image-placeholder expansion of
+      `Qwen3VLProcessor.__call__` of src/transformers/models/qwen3_vl/processing_qwen3_vl.py. Modified: expands
+      the image placeholders of one prompt from cached image grids.
+
+===============================================================================
+Liger-Kernel -- BSD 2-Clause License (text below)
+Copyright 2024 LinkedIn Corporation. All Rights Reserved.
+https://github.com/linkedin/Liger-Kernel
+
+  src/concertina/model/liger.py
+      `install_liger_kernels` adapts `apply_liger_kernel_to_qwen3_vl` of
+      src/liger_kernel/transformers/monkey_patch.py. Modified: the Liger RMSNorm, RoPE and SwiGLU kernels are
+      bound to the modules of one model instance instead of patching module-level Transformers symbols.
+
+===============================================================================
+X-VLA -- Apache License 2.0
+Copyright 2025 2toINF
+https://github.com/2toinf/X-VLA
+
+  src/concertina/data/rotation.py
+      The 6D-rotation conversions originate in X-VLA (via LeRobot, see above).
+
+===============================================================================
+robosuite -- MIT License (text below)
+Copyright (c) 2022 Stanford Vision and Learning Lab and UT Robot Perception and Learning Lab
+https://github.com/ARISE-Initiative/robosuite
+
+  src/concertina/data/rotation.py
+      `_matrix_to_quat` and `_quat_to_axis_angle` derive from `mat2quat` and `quat2axisangle` of
+      robosuite/utils/transform_utils.py (via X-VLA and LeRobot).
+
+===============================================================================
+CALVIN -- MIT License (text below)
+Copyright (c) 2021 Oier Mees
+https://github.com/mees/calvin
+
+  src/concertina_eval_client/calvin.py
+      Adapts `evaluate_sequence` and `rollout` of calvin_models/calvin_agent/evaluation/evaluate_policy.py and
+      `count_success` of calvin_agent/evaluation/utils.py. Modified: the policy runs in a separate server
+      process, the sequence reset restores the gripper command, sequences come from a saved manifest, and
+      per-sequence results and videos are written.
+  configs/eval/calvin_sequences_1000.json
+      Generated with `calvin_agent.evaluation.multistep_sequences.get_sequences(1000)`.
+
+===============================================================================
+MIT License (robosuite, CALVIN; copyright lines above)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+===============================================================================
+BSD 2-Clause License (Liger-Kernel; copyright line above)
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that
+the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+   following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+   following disclaimer in the documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.

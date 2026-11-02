@@ -1,0 +1,954 @@
+# Concertina pretraining, stage 2 -> Traly/concertina-pretrain-90k: 30,000 more updates from the stage-1
+# checkpoint of pretrain_60k.yaml (not released) on the same 39 datasets; 8 processes x batch_size 192 = 1536
+# samples per update. The benchmark fine-tunes start from it.
+# The pretraining datasets are not released; policy.data.datasets[i].path are directories under dataset.root.
+# policy.pretrained_path is a placeholder: pass the pretrained_model directory written by pretrain_60k.yaml.
+#   torchrun --nproc-per-node=8 "$(which concertina-train)" --config_path=configs/train/pretrain_90k.yaml \
+#       --dataset.root=/path/to/datasets \
+#       --policy.pretrained_path=<pretrain_60k output_dir>/checkpoints/last/pretrained_model
+# Fewer GPUs: k-fold accelerator.gradient_accumulation.steps keeps the batch; also multiply steps, save_freq
+# and policy.scheduler_{warmup,decay}_steps by k (all count micro-batches).
+# Do not pass --policy.path (it replaces the policy section of this file).
+dataset:
+  repo_id: concertina/pretrain-90k
+  root: /path/to/datasets
+  image_transforms:
+    enable: true
+    max_num_transforms: 3
+    random_order: false
+    tfs:
+      affine:
+        weight: 1.0
+        type: RandomAffine
+        kwargs:
+          degrees:
+          - -5
+          - 5
+          translate:
+          - 0.05
+          - 0.05
+      brightness:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          brightness:
+          - 0.8
+          - 1.2
+      contrast:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          contrast:
+          - 0.8
+          - 1.2
+      hue:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          hue:
+          - -0.05
+          - 0.05
+      saturation:
+        weight: 1.0
+        type: ColorJitter
+        kwargs:
+          saturation:
+          - 0.5
+          - 1.5
+      sharpness:
+        weight: 1.0
+        type: SharpnessJitter
+        kwargs:
+          sharpness:
+          - 0.5
+          - 1.5
+  use_imagenet_stats: true
+  video_backend: torchcodec
+policy:
+  type: concertina
+  device: cuda
+  dtype: float32
+  push_to_hub: false
+  pretrained_path: /path/to/pretrain_60k/checkpoints/last/pretrained_model
+  model:
+    backbone_path: ''
+    vision_attn_implementation: sdpa
+    training_attn_implementation: cudnn_sdpa_native_gqa
+    gradient_checkpointing: true
+    use_liger_kernels: true
+    camera_keys:
+    - observation.images.head
+    - observation.images.wrist_left
+    - observation.images.wrist_right
+    chunk_size: 20
+    block_size: 10
+    gripper_indices:
+    - 9
+    - 19
+    gripper_target: probability
+    action_dim_loss_weights:
+    - 500.0
+    - 500.0
+    - 500.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 1.0
+    - 500.0
+    - 500.0
+    - 500.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 1.0
+    state_mask_dims:
+    - 2
+    - 12
+    state_mask_prob: 0.5
+    state_mask_ratio_range:
+    - 1.0
+    - 1.0
+    state_mask_fill_value: 0.0
+    random_resized_crop: true
+    mask_value: zeros
+    corruption:
+      mode: log_linear_mask
+      visible_corruption: uniform
+      visible_noise_std: 1.0
+      visible_uniform_range:
+      - -1.0
+      - 1.0
+      probability_floor: 0.001
+      loss_weighting: none
+    full_mask_probability: 0.0
+    visible_action_context:
+      strategy: none
+      apply_probability: 0.0
+      noise_std:
+      - 0.0
+      repair_loss_weight: 0.0
+      apply_to_history: false
+    token_risk: true
+    action_history:
+      enabled: false
+      horizon: 20
+      mode: prefix
+      missing_history: mask
+      noise_std: 1.0
+    freeze_action_heads: false
+    freeze_backbone_layers: []
+    rng_seed: 43
+    inference:
+      n_action_steps: 20
+      draft_steps: 4
+      confidence: token_risk
+      commit_strategy: dynamic
+      commit_confidence_threshold: 0.0
+      commit_max_ratio: 0.5
+      draft_ranking: confidence
+      draft_seed: null
+      visible_revision: true
+      revision_margin: 0.0
+      remask_steps: 2
+      remask_ratio: 0.2
+      remask_cooldown_steps: 1
+      remask_decay_budget: true
+      remask_accept_if_improved: true
+      remask_improvement_margin: 0.0
+      remask_early_stop_patience: 2
+      remask_keep_best: true
+      remask_no_repeat: false
+      remask_keep_draft_translation: false
+      rtc: false
+      rtc_prefix_source: executed_tail
+      rtc_execution_horizon: 0
+  data:
+    datasets:
+    - path: droid
+      source: droid
+      embodiment: droid_single
+      adapter: null
+      weight: 0.15
+      source_fps: 15.0
+      camera_map:
+        observation.images.head:
+        - observation.images.exterior_1_left
+        observation.images.wrist_left:
+        - observation.images.wrist_left
+      valid_action_dim: 10
+      gripper_profile: droid
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: droid
+      source: droid
+      embodiment: droid_single
+      adapter: null
+      weight: 0.15
+      source_fps: 15.0
+      camera_map:
+        observation.images.head:
+        - observation.images.exterior_2_left
+        observation.images.wrist_left:
+        - observation.images.wrist_left
+      valid_action_dim: 10
+      gripper_profile: droid
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_327
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0021414178844817097
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_352
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.01636835971924168
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_354
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0025103610075484584
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_356
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0037498428180796606
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_357
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.01218529709701134
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_358
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.00466178827138192
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_359
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.005795473975310371
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_360
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0049979127627559575
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_361
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.03434157392680604
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_362
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.07321068044974091
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_365
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.00460768562610661
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_366
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.00670618883825077
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_367
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0019167918127956612
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_368
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.016958748444538117
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_372
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.007409410567148766
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_374
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.00043023865566842423
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_375
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.007157668176855247
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_376
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0039020633793900557
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_377
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.01012532349577444
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_378
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.012396222018260055
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_380
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.016669819693380213
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_384
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.009466879657015401
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_385
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0021653537336328234
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_388
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0012339441539028304
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_389
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0029852475614162086
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_390
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.010930649560189605
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_398
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.00191626317890782
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_410
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.007016618256223992
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_414
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.032127672536784904
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_421
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.01635521320108011
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_422
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.03266946160891717
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_424
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.013680360393119892
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_440
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.020672306179201516
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: agibot-task_446
+      source: agibot
+      embodiment: agibot_dual
+      adapter: null
+      weight: 0.0005371613590813146
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.head
+        observation.images.wrist_left:
+        - observation.images.hand_left
+        observation.images.wrist_right:
+        - observation.images.hand_right
+      valid_action_dim: 20
+      gripper_profile: agibot
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: robomind-agilex
+      source: robomind
+      embodiment: agilex_dual
+      adapter: robomind_agilex
+      weight: 0.07
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.camera_front
+        observation.images.wrist_left:
+        - observation.images.camera_left_wrist
+        observation.images.wrist_right:
+        - observation.images.camera_right_wrist
+      valid_action_dim: 20
+      gripper_profile: robomind_agilex_master
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: robomind-franka
+      source: robomind
+      embodiment: franka_single
+      adapter: robomind_single
+      weight: 0.1
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.camera_top
+        observation.images.wrist_left:
+        - observation.images.camera_top
+      valid_action_dim: 10
+      gripper_profile: robomind_franka_master
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    - path: robomind-fr3
+      source: robomind
+      embodiment: fr3_dual
+      adapter: robomind_fr3_dual
+      weight: 0.03
+      source_fps: 30.0
+      camera_map:
+        observation.images.head:
+        - observation.images.camera_front
+        observation.images.wrist_left:
+        - observation.images.camera_left
+        observation.images.wrist_right:
+        - observation.images.camera_right
+      valid_action_dim: 20
+      gripper_profile: robomind_fr3_master
+      rotation_stats_path: null
+      episodes: null
+      quality_package: null
+    drop_n_first_frames: 0
+    drop_n_last_frames: 19
+    fps_align_target_fps: 30.0
+    resize_images: true
+    normalization: per_embodiment
+    gripper_range_tolerance: 1.0e-06
+    custom_gripper_profiles:
+    - id: robomind_agilex_master
+      indices:
+      - 9
+      - 19
+      open_values:
+      - 5.0
+      - 5.0
+      closed_values:
+      - 0.0
+      - 0.0
+      source: robomind
+      adapter: robomind_agilex
+      out_of_range: clip
+      provenance: ARX X5 nominal gripper range 0..5 rad with a direct master-to-follower command; checked against
+        RoboMIND wrist videos and the full-corpus range; finite overshoot is saturated
+    - id: robomind_franka_master
+      indices:
+      - 9
+      open_values:
+      - 0.0
+      closed_values:
+      - 1.0
+      source: robomind
+      adapter: robomind_single
+      out_of_range: error
+      provenance: RoboMIND GELLO master command; GELLO DynamixelRobot normalization and Panda width=MAX_OPEN*(1-command);
+        checked against the full-corpus range and wrist videos
+    - id: robomind_fr3_master
+      indices:
+      - 9
+      - 19
+      open_values:
+      - 0.0
+      - 0.0
+      closed_values:
+      - 1.0
+      - 1.0
+      source: robomind
+      adapter: robomind_fr3_dual
+      out_of_range: error
+      provenance: RoboMIND FR3 master command; both Robotiq hands checked independently against wrist videos and
+        the full-corpus range
+    inference_dataset_index: 0
+    quality:
+      require_release_ready: true
+  optimizer_lr: 2.5e-05
+  optimizer_betas:
+  - 0.9
+  - 0.95
+  optimizer_eps: 1.0e-08
+  optimizer_weight_decay: 0.01
+  optimizer_grad_clip_norm: 1.0
+  scheduler_warmup_steps: 1000
+  scheduler_decay_steps: 30000
+  scheduler_decay_lr: 2.5e-06
+job_name: concertina-pretrain-90k
+seed: 43
+cudnn_deterministic: false
+num_workers: 8
+prefetch_factor: 2
+dataloader_multiprocessing_context: spawn
+batch_size: 192
+steps: 30000
+log_freq: 10
+tolerance_s: 0.0001
+save_checkpoint: true
+save_freq: 5000
+persistent_workers: true
+resume: false
+use_policy_training_preset: true
+parallelism:
+  dp_shard: -1
+accelerator:
+  mixed_precision: bf16
+  gradient_accumulation:
+    steps: 1
+checkpoint_format: safetensors_dcp
+wandb:
+  enable: false

@@ -1,0 +1,60 @@
+# CALVIN ABC -> D, 1000 long-horizon sequences (5 subtasks, 360 steps each), absolute end-effector actions.
+#
+#   export CALVIN_ROOT=/path/to/calvin CALVIN_DATASET=/path/to/calvin/dataset/task_ABC_D
+#   concertina-eval --config_path configs/eval/calvin_abc_d.yaml --policy_path <policy dir> \
+#       --output_dir <run dir> --gpus '[0]'
+#
+# The reported numbers follow CALVIN's protocol: all sequences in order, in one environment (one GPU). The
+# environment carries state from one sequence into the next; `--calvin.sharded true --gpus '[0,1,2]'` splits the
+# sequences into contiguous blocks for speed, which changes the outcome of some sequences.
+benchmark: calvin
+server:
+  host: 127.0.0.1
+  device: cuda
+  allow_tf32: false
+  # CALVIN cameras / robot state -> keys of the CALVIN LeRobot dataset the policy was trained on.
+  image_keys:
+    rgb_static: observation.images.top
+    rgb_gripper: observation.images.wrist
+  state_keys:
+    robot_obs: observation.state
+  # Decoding recipe of the reported CALVIN (and LIBERO) results; it differs from the recipe saved with the
+  # checkpoints (visible revision, 2 remask rounds of 20%).
+  inference:
+    n_action_steps: 10
+    draft_steps: 4
+    confidence: token_risk
+    commit_strategy: dynamic
+    commit_confidence_threshold: 0.0
+    commit_max_ratio: 0.5
+    draft_ranking: confidence
+    draft_seed: null
+    visible_revision: false
+    revision_margin: 0.0
+    remask_steps: 5
+    remask_ratio: 0.15
+    remask_cooldown_steps: 0
+    remask_decay_budget: false
+    remask_accept_if_improved: false
+    remask_improvement_margin: 0.0
+    remask_early_stop_patience: 2
+    remask_keep_best: false
+    remask_no_repeat: false
+    remask_keep_draft_translation: false
+    rtc: false
+    rtc_prefix_source: executed_tail
+    rtc_execution_horizon: 0
+client:
+  # CALVIN's environment (Python 3.8); alternatively `python: /path/to/env/bin/python`.
+  conda_env: calvin_venv
+calvin:
+  calvin_root: ${CALVIN_ROOT}
+  dataset_path: ${CALVIN_DATASET}
+  manifest: configs/eval/calvin_sequences_1000.json
+  num_sequences: null
+  ep_len: 360
+  seed: 0
+  renderer: egl
+  video: true
+  video_fps: 12
+  sharded: false
