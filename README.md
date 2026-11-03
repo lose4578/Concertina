@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="docs/assets/concertina_logo.png" alt="Concertina" width="180">
-</p>
-
-<h1 align="center">Concertina</h1>
+<h1 align="center"><img src="docs/assets/concertina_logo.png" alt="" height="44" align="absmiddle"> Concertina</h1>
 
 <p align="center"><b>Embodying Manipulation and Cognition in One Diffusion Vision-Language Model</b></p>
 
@@ -40,7 +36,7 @@ configurations, the released checkpoints, and the CALVIN (ABC -> D) and LIBERO e
 | CALVIN ABC -> D, tasks completed in a row 1 / 2 / 3 / 4 / 5 | 98.6 / 93.8 / 83.2 / 73.7 / 64.9% | 98.0 / 93.0 / 83.8 / 75.1 / 65.4% |
 
 The right column re-evaluates the released checkpoints with this code; the differences are within evaluation noise.
-A LIBERO fine-tuning re-run with `concertina-train` from `concertina-pretrain-90k` reaches 97.45%.
+A LIBERO fine-tuning re-run with `concertina-train` from [Traly/concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) reaches 97.45%.
 [docs/reproduction.md](docs/reproduction.md) describes how the release was verified against the code used for the
 paper, and every setting a reproduction has to match.
 
@@ -52,7 +48,7 @@ paper, and every setting a reproduction has to match.
 - [Training](#training)
 - [Data](#data)
 - [Repository layout](#repository-layout)
-- [License](#license) / [Acknowledgements](#acknowledgements) / [Citation](#citation)
+- [Acknowledgements](#acknowledgements) / [Citation](#citation)
 
 Further documentation: [evaluation](docs/eval.md), [datasets](docs/datasets.md),
 [configuration](docs/configuration.md) (including the paper's ablation branches and how the paper's notation maps to
@@ -100,11 +96,11 @@ pytest tests  # the full suite; a few tests download the Qwen3-VL tokenizer or n
 
 ## Checkpoints
 
-| Checkpoint | Hub id | Training |
+| Checkpoint | Hugging Face | Training |
 |---|---|---|
-| Concertina pretrained | `Traly/concertina-pretrain-90k` | `configs/train/pretrain_90k.yaml`: 30k more steps from the stage-1 checkpoint of `configs/train/pretrain_60k.yaml` (60k steps from the Bard-VL backbone; not released) |
-| Concertina CALVIN ABC -> D | `Traly/concertina-calvin` | `configs/train/calvin.yaml`, fine-tuned from `concertina-pretrain-90k` |
-| Concertina LIBERO | `Traly/concertina-libero` | `configs/train/libero.yaml`, fine-tuned from `concertina-pretrain-90k` |
+| Concertina pretrained | [Traly/concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) | `configs/train/pretrain_90k.yaml`: 30k more steps from the stage-1 checkpoint of `configs/train/pretrain_60k.yaml` (60k steps from the Bard-VL backbone; not released) |
+| Concertina CALVIN ABC -> D | [Traly/concertina-calvin](https://huggingface.co/Traly/concertina-calvin) | `configs/train/calvin.yaml`, fine-tuned from [concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) |
+| Concertina LIBERO | [Traly/concertina-libero](https://huggingface.co/Traly/concertina-libero) | `configs/train/libero.yaml`, fine-tuned from [concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) |
 
 A released checkpoint is a self-contained LeRobot policy directory: `config.json`, `model.safetensors` (bf16, 4.46B
 parameters), the saved pre/post-processors and `backbone/` (the backbone's configuration, tokenizer and
@@ -156,8 +152,8 @@ The configurations in `configs/train/` are those of the paper's runs:
 |---|---|---|---|
 | `pretrain_60k.yaml` | the Bard-VL backbone | 39 pretraining datasets (see [Data](#data)) | 60,000 x 1536 |
 | `pretrain_90k.yaml` | the stage-1 checkpoint of `pretrain_60k.yaml` (not released; `--policy.pretrained_path`) | the same | 30,000 x 1536 |
-| `calvin.yaml` | `Traly/concertina-pretrain-90k` | CALVIN ABC (`calvin_abc_d-lerobot`) | 5,000 x 1536 |
-| `libero.yaml` | `Traly/concertina-pretrain-90k` | LIBERO (`libero`) | 5,000 x 448 |
+| `calvin.yaml` | [Traly/concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) | CALVIN ABC ([Traly/calvin_abc_d-lerobot](https://huggingface.co/datasets/Traly/calvin_abc_d-lerobot)) | 5,000 x 1536 |
+| `libero.yaml` | [Traly/concertina-pretrain-90k](https://huggingface.co/Traly/concertina-pretrain-90k) | LIBERO ([lerobot/libero](https://huggingface.co/datasets/lerobot/libero)) | 5,000 x 448 |
 
 The global batch is the per-GPU `batch_size` times 8 GPUs. The fine-tuning configurations name their parent
 checkpoint by Hub id in `policy.pretrained_path`; `--policy.pretrained_path=<dir>` selects a local copy instead. In
@@ -274,26 +270,6 @@ The package registers itself through LeRobot's third-party plugin convention (di
 `lerobot.scripts.lerobot_train` for the duration of a run, after checking their signatures against the pinned
 version.
 
-## License
-
-The Concertina code and the released checkpoints are released under the [MIT License](LICENSE). Code adapted from
-third-party projects keeps its original license and notices ([NOTICE](NOTICE); the Apache License 2.0 is in
-[LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)). The checkpoints are fine-tuned from the Bard-VL backbone
-([fudan-generative-ai/Bard-VL-B4-Mask-4B-Instruct](https://huggingface.co/fudan-generative-ai/Bard-VL-B4-Mask-4B-Instruct)),
-which is released under the MIT License and is derived from Qwen3-VL (Apache License 2.0).
-
-The datasets used for training keep their own licenses and terms, as stated by their authors:
-
-| Dataset | Used for | License |
-|---|---|---|
-| AgiBot World | pretraining (part of the pretraining data of every released Concertina checkpoint) | CC BY-NC-SA 4.0 (access subject to the AgiBot World Community License Agreement) |
-| DROID | pretraining | CC BY 4.0 |
-| RoboMIND | pretraining | Apache-2.0 (per its Hugging Face dataset card; access subject to accepting its conditions) |
-| CALVIN | CALVIN fine-tuning | MIT (repository; no separate dataset license stated) |
-| LIBERO | LIBERO fine-tuning | CC BY 4.0 (datasets; code MIT) |
-
-Each dataset's terms are its own and are not changed by the license of the code or the checkpoints.
-
 ## Acknowledgements
 
 Concertina builds on [LeRobot](https://github.com/huggingface/lerobot),
@@ -311,41 +287,5 @@ Pretraining uses [DROID](https://droid-dataset.github.io/) ([arXiv:2403.12945](h
   title={{Concertina}: Embodying Manipulation and Cognition in One Diffusion Vision-Language Model},
   author={Chengcheng Wang and Wei He and Wenhao Li and Hongguang Li and Kai Han and Jianyuan Guo and Chang Xu},
   year={2026}
-}
-```
-
-Concertina's backbone is Bard-VL; please also cite it:
-
-```bibtex
-@article{chen2026bard,
-  title={BARD: Bridging AutoRegressive and Diffusion Vision-Language Models Via Highly Efficient Progressive Block Merging and Stage-Wise Distillation},
-  author={Baoyou Chen and Hanchen Xia and Peng Tu and Haojun Shi and Liwei Zhang and Yuxuan Yao and Weihao Yuan and Siyu Zhu},
-  journal={arXiv preprint arXiv:2604.16514},
-  year={2026}
-}
-```
-
-The pretraining datasets:
-
-```bibtex
-@article{khazatsky2024droid,
-  title={DROID: A Large-Scale In-The-Wild Robot Manipulation Dataset},
-  author={Khazatsky, Alexander and Pertsch, Karl and Nair, Suraj and others},
-  journal={arXiv preprint arXiv:2403.12945},
-  year={2024}
-}
-
-@article{agibotworld2025colosseo,
-  title={AgiBot World Colosseo: A Large-scale Manipulation Platform for Scalable and Intelligent Embodied Systems},
-  author={{AgiBot World Contributors} and Bu, Qingwen and others},
-  journal={arXiv preprint arXiv:2503.06669},
-  year={2025}
-}
-
-@article{wu2024robomind,
-  title={RoboMIND: Benchmark on Multi-embodiment Intelligence Normative Data for Robot Manipulation},
-  author={Wu, Kun and others},
-  journal={arXiv preprint arXiv:2412.13877},
-  year={2024}
 }
 ```
