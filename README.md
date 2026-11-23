@@ -2,6 +2,13 @@
 
 <p align="center"><b>Embodying Manipulation and Cognition in One Diffusion Vision-Language Model</b></p>
 
+<p align="center">
+  <a href="https://concertina.traly.org/"><img src="https://img.shields.io/badge/Project_Page-concertina.traly.org-2B7A9B?style=flat" alt="Project Page"></a>
+  <a href="https://arxiv.org/abs/2611.07513"><img src="https://img.shields.io/badge/arXiv-2611.07513-b31b1b?style=flat&logo=arxiv&logoColor=white" alt="arXiv"></a>
+  <a href="https://huggingface.co/collections/Traly/concertina"><img src="https://img.shields.io/badge/Hugging_Face-Collection-FFD21E?style=flat&logo=huggingface&logoColor=FFD21E" alt="Hugging Face"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-4c8c4a?style=flat" alt="License: MIT"></a>
+</p>
+
 Concertina is an *embodied vision-language model* (eVLM). Instead of attaching an external action mechanism to a
 vision-language model (an action tokenizer or a separate action expert), it places continuous trajectory
 representation, blockwise generation and physical-coordinate supervision directly on the computation path of one
@@ -286,6 +293,10 @@ Pretraining uses [DROID](https://droid-dataset.github.io/) ([arXiv:2403.12945](h
 @misc{wang2026concertina,
   title={{Concertina}: Embodying Manipulation and Cognition in One Diffusion Vision-Language Model},
   author={Chengcheng Wang and Wei He and Wenhao Li and Hongguang Li and Kai Han and Jianyuan Guo and Chang Xu},
-  year={2026}
+  year={2026},
+  eprint={2611.07513},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2611.07513}
 }
 ```
